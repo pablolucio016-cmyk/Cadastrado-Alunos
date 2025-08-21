@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cadastro de Alunos</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <form id="formAluno" novalidate>
+      <h1>Cadastro de Alunos</h1>
+
+      <input type="text" id="nome" placeholder="Nome" required />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="date" id="data_matricula" required />
+
+      <select id="curso" required>
+        <option value="">Selecione um curso</option>
+      </select>
+
+      <button type="submit" id="btnCadastrar">Cadastrar</button>
+
+      <p id="status" aria-live="polite"></p>
+    </form>
+
+    <script>
+      // Se você NÃO usar Flask e abrir com Live Server,
+      // troque API_BASE para "http://127.0.0.1:5000"
+      const API_BASE = ""; // vazio = mesma origem (Flask servindo tudo)
+
+      const statusBox = document.getElementById("status");
+      const btn = document.getElementById("btnCadastrar");
+      const selectCurso = document.getElementById("curso");
+
+      function setStatus(msg, isError = false) {
+        statusBox.textContent = msg || "";
+        statusBox.style.color = isError ? "#f87171" : "#a7f3d0";
+      }
+
+      async function carregarCursos() {
+        try {
+          const res = await fetch(`${API_BASE}/api/cursos`);
+          if (!res.ok) throw new Error("Falha ao carregar cursos");
+          const cursos = await res.json();
+          [...selectCurso.querySelectorAll("option:not(:first-child)")].forEach(o => o.remove());
+          cursos.forEach(curso => {
+            const opt = document.createElement("option");
+            opt.value = curso.id;
+            opt.textContent = curso.nome_curso;
+            selectCurso.appendChild(opt);
+          });
+        } catch (e) {
+          setStatus("Erro ao carregar cursos: " + e.message, true);
+        }
+      }
+
+      async function cadastrarAluno(e) {
+        e.preventDefault();
+        setStatus("");
+
+        const aluno = {
+          nome: document.getElementById("nome").value.trim(),
+          email: document.getElementById("email").value.trim(),
+          data_matricula: document.getElementById("data_matricula").value,
+          curso_id: selectCurso.value
+        };
+
+        if (!aluno.nome || !aluno.email || !aluno.data_matricula || !aluno.curso_id) {
+          setStatus("Preencha todos os campos.", true);
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Cadastrando...";
+
+        try {
+          const res = await fetch(`${API_BASE}/api/alunos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(aluno),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok) throw new Error(data?.error || "Erro ao cadastrar aluno");
+
+          setStatus(data.message || "Aluno cadastrado!");
+          document.getElementById("formAluno").reset();
+          selectCurso.value = "";
+        } catch (err) {
+          setStatus(err.message, true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Cadastrar";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        carregarCursos();
+        document.getElementById("formAluno").addEventListener("submit", cadastrarAluno);
+      });
+    </script>
+  </body>
+</html>
